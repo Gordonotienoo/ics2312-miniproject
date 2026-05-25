@@ -1,88 +1,141 @@
 <?php
-
-declare(strict_types=1);
-
-namespace App;
-
-use BadMethodCallException;
-
+/**
+ * FormValidator — Phase 3: Web Form (Week 12)
+ * ---------------------------------------------
+ * Course  : ICS/ECE 2312 — JKUAT ECE Year 3 Semester 2
+ * Lecturer: Maxwell Ouma
+ * Platform: Kioto iLMS
+ *
+ * Reusable, server-side validation rules for the student registration form.
+ * Validation contract:
+ *   — Returns NULL  when the supplied value is valid.
+ *   — Returns a human-readable string when the value is invalid.
+ *
+ * This class is intentionally free of any HTML or $_POST references so it
+ * can be unit-tested independently and reused across multiple form pages.
+ */
 class FormValidator
 {
+    // =========================================================================
+    // Individual field validators
+    // =========================================================================
+
     /**
-     * Validate a student's name according to the project rules.
+     * Validate a student's full name.
      *
-     * A valid name should contain at least 2 visible characters after trimming and should
-     * contain alphabetic characters, spaces, apostrophes, or hyphens only. Return null
-     * when the value is valid, otherwise return a human-readable error message.
+     * Rules
+     *   • Minimum 2 characters (after trimming whitespace).
+     *   • Only letters (A–Z, a–z), spaces, hyphens, and apostrophes.
+     *   • Regex: /^[A-Za-z\s'-]+$/
      *
-     * @param string $name Raw name input from the form.
-     *
-     * @return string|null Null when valid, otherwise an error message.
+     * @param string $name Raw name string from user input.
+     * @return string|null NULL if valid; error message string if invalid.
      */
     public function validateName(string $name): ?string
     {
-        // TODO: Trim surrounding whitespace before checking length.
-        // TODO: Reject names shorter than 2 characters.
-        // TODO: Reject names that contain digits or unsupported symbols.
-        // TODO: Return null when the name satisfies all rules.
-        throw new BadMethodCallException('Not implemented');
+        $name = trim($name);
+
+        if (strlen($name) < 2) {
+            return 'Name is too short. Please enter at least 2 characters.';
+        }
+
+        if (!preg_match("/^[A-Za-z\s'\-]+$/", $name)) {
+            return 'Name contains invalid characters. '
+                 . "Only letters, spaces, hyphens (-), and apostrophes (') are allowed.";
+        }
+
+        return null; // Valid.
     }
 
     /**
-     * Validate an email address using server-side rules.
+     * Validate an email address.
      *
-     * The implementation should reject malformed email addresses and return a clear error
-     * message. Return null for a valid email address.
+     * Uses PHP's built-in filter_var() with FILTER_VALIDATE_EMAIL, which
+     * checks the structure of the address without sending any network request.
      *
-     * @param string $email Raw email input from the form.
-     *
-     * @return string|null Null when valid, otherwise an error message.
+     * @param string $email Raw email string from user input.
+     * @return string|null  NULL if valid; error message string if invalid.
      */
     public function validateEmail(string $email): ?string
     {
-        // TODO: Trim the email string before validation.
-        // TODO: Use a dependable validation approach such as filter_var().
-        // TODO: Return an error message when the address is malformed.
-        // TODO: Return null for valid email addresses.
-        throw new BadMethodCallException('Not implemented');
+        $email = trim($email);
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return 'The email address format is invalid. '
+                 . 'Please enter a valid address (e.g. name@domain.com).';
+        }
+
+        return null; // Valid.
     }
 
     /**
-     * Validate an age value against the project range requirements.
+     * Validate a student's age.
      *
-     * A valid age must be between 18 and 100 inclusive. Return null when the value is
-     * accepted, otherwise return a human-readable error message.
+     * Rules
+     *   • Minimum: 18 (inclusive).
+     *   • Maximum: 100 (inclusive).
      *
-     * @param int $age Student age from the form submission.
-     *
-     * @return string|null Null when valid, otherwise an error message.
+     * @param int $age Integer age value from user input.
+     * @return string|null NULL if valid; error message string if invalid.
      */
     public function validateAge(int $age): ?string
     {
-        // TODO: Check whether the age is below the minimum allowed value of 18.
-        // TODO: Check whether the age is above the maximum allowed value of 100.
-        // TODO: Return null if the age falls within the inclusive valid range.
-        throw new BadMethodCallException('Not implemented');
+        if ($age < 18) {
+            return "Age is below the minimum allowed value of 18. "
+                 . "You entered {$age}.";
+        }
+
+        if ($age > 100) {
+            return "Age is above the maximum allowed value of 100. "
+                 . "You entered {$age}.";
+        }
+
+        return null; // Valid.
     }
 
+    // =========================================================================
+    // Aggregate validator
+    // =========================================================================
+
     /**
-     * Validate all required form fields and return an associative error list.
+     * Validate all registration fields in a single call.
      *
-     * The implementation should validate at least the `name`, `email`, and `age` fields.
-     * Return an empty array when all fields are valid. When one or more fields fail
-     * validation, return an associative array where the keys are field names and the
-     * values are the related error messages.
+     * Runs validateName(), validateEmail(), and validateAge() on the
+     * corresponding values from $input and collects all errors.
      *
-     * @param array<string, mixed> $input Submitted form data.
-     *
-     * @return array<string, string> Associative array of validation errors.
+     * @param array $input Associative array with keys 'name', 'email', 'age'.
+     *                     Example:
+     *                     ['name' => 'Grace Wanjiku',
+     *                      'email' => 'grace@students.jkuat.ac.ke',
+     *                      'age'   => 21]
+     * @return array       Associative array of field-keyed error messages.
+     *                     An EMPTY array means all fields passed validation.
+     *                     Example on failure:
+     *                     ['name'  => 'Name is too short ...',
+     *                      'email' => 'The email address format is invalid ...']
      */
     public function validateAll(array $input): array
     {
-        // TODO: Extract the required fields from the input array safely.
-        // TODO: Call validateName(), validateEmail(), and validateAge().
-        // TODO: Add only the failing fields to the returned errors array.
-        // TODO: Return an empty array when all validations pass.
-        throw new BadMethodCallException('Not implemented');
+        $errors = [];
+
+        // Validate name.
+        $nameError = $this->validateName((string)($input['name'] ?? ''));
+        if ($nameError !== null) {
+            $errors['name'] = $nameError;
+        }
+
+        // Validate email.
+        $emailError = $this->validateEmail((string)($input['email'] ?? ''));
+        if ($emailError !== null) {
+            $errors['email'] = $emailError;
+        }
+
+        // Validate age — cast to int so validateAge() receives the right type.
+        $ageError = $this->validateAge((int)($input['age'] ?? 0));
+        if ($ageError !== null) {
+            $errors['age'] = $ageError;
+        }
+
+        return $errors; // Empty array = all valid.
     }
 }

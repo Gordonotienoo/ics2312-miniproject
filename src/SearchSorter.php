@@ -1,112 +1,222 @@
 <?php
-
-declare(strict_types=1);
-
-namespace App;
-
-use BadMethodCallException;
-
+/**
+ * SearchSorter — Phase 2: Search & Sort (Week 11)
+ * -------------------------------------------------
+ * Course  : ICS/ECE 2312 — JKUAT ECE Year 3 Semester 2
+ * Lecturer: Maxwell Ouma
+ * Platform: Kioto iLMS
+ *
+ * Implements two search algorithms and three sort algorithms.
+ * Every sort method returns ['sorted' => [...], 'iterations' => int]
+ * so the autograder can verify both the sorted output and the exact
+ * iteration (comparison) count.
+ */
 class SearchSorter
 {
+    // =========================================================================
+    // SEARCH ALGORITHMS
+    // =========================================================================
+
     /**
-     * Search linearly through an array and return the index of the first matching value.
+     * Linear Search
+     * -------------
+     * Scans every element from left to right until the target is found.
      *
-     * The implementation should inspect elements one by one from left to right. If the
-     * target value is found, return its zero-based index. If the target does not exist in
-     * the array, return -1.
+     * Time complexity:
+     *   Best    O(1)  — target is the first element
+     *   Average O(n)
+     *   Worst   O(n)  — target is the last element or absent
      *
-     * @param array<int, int|string> $items Indexed array to search.
-     * @param int|string $target Value being searched for.
-     *
-     * @return int Zero-based index of the target, or -1 if not found.
+     * @param array          $items  Indexed array of values to search.
+     * @param int|string     $target The value to find.
+     * @return int                   Zero-based index of the target, or -1 if
+     *                               the target is not present.
      */
     public function linearSearch(array $items, int|string $target): int
     {
-        // TODO: Loop through the array from index 0 to the last element.
-        // TODO: Compare each value to the target using a consistent equality rule.
-        // TODO: Return the matching index immediately when found.
-        // TODO: Return -1 after the loop if the target is not present.
-        throw new BadMethodCallException('Not implemented');
+        foreach ($items as $index => $value) {
+            if ($value === $target) {
+                return $index;
+            }
+        }
+        return -1;
     }
 
     /**
-     * Search a pre-sorted array using the binary search algorithm.
+     * Binary Search
+     * -------------
+     * Repeatedly halves the search range.  The input array MUST already be
+     * sorted in ascending order for this algorithm to produce correct results.
      *
-     * The implementation should repeatedly inspect the middle element and reduce the
-     * search range until the target is found or the range becomes empty. The input array
-     * is expected to be sorted in ascending order before this method is called.
+     * Time complexity:
+     *   Best    O(1)     — target is the middle element on the first probe
+     *   Average O(log n)
+     *   Worst   O(log n)
      *
-     * @param array<int, int|string> $items Ascending sorted indexed array.
-     * @param int|string $target Value being searched for.
-     *
-     * @return int Zero-based index of the target, or -1 if not found.
+     * @param array          $items  Ascending-sorted indexed array.
+     * @param int|string     $target The value to find.
+     * @return int                   Zero-based index of the target, or -1 if
+     *                               the target is not present.
      */
     public function binarySearch(array $items, int|string $target): int
     {
-        // TODO: Track low and high bounds for the current search range.
-        // TODO: Compute the middle index and compare the middle value to the target.
-        // TODO: Narrow the search to the left or right half as appropriate.
-        // TODO: Return the index when the target is found, otherwise return -1.
-        throw new BadMethodCallException('Not implemented');
+        $low  = 0;
+        $high = count($items) - 1;
+
+        while ($low <= $high) {
+            $mid = intdiv($low + $high, 2);
+
+            if ($items[$mid] === $target) {
+                return $mid;
+            } elseif ($items[$mid] < $target) {
+                $low = $mid + 1;   // Target is in the right half.
+            } else {
+                $high = $mid - 1;  // Target is in the left half.
+            }
+        }
+
+        return -1;
     }
 
+    // =========================================================================
+    // SORT ALGORITHMS
+    // =========================================================================
+
     /**
-     * Sort an array in ascending order using bubble sort and count loop iterations.
+     * Bubble Sort
+     * -----------
+     * Repeatedly compares adjacent elements and swaps them if they are in the
+     * wrong order.  Includes an early-termination optimisation: if a full pass
+     * produces no swaps the array is already sorted and the loop exits early,
+     * giving O(n) best-case performance.
      *
-     * The implementation should return both the sorted array and the total number of
-     * comparison iterations performed. The expected return shape for this project is:
-     * `['sorted' => [...], 'iterations' => 0]`.
+     * Time complexity:
+     *   Best    O(n)  — already sorted (with optimisation)
+     *   Average O(n²)
+     *   Worst   O(n²)
      *
-     * @param array<int, int|float|string> $items Array to sort.
+     * Iteration contract: 'iterations' counts every element comparison made
+     * inside the inner loop, matching the autograder's expectation.
      *
-     * @return array{sorted: array<int, int|float|string>, iterations: int}
+     * Trace example — bubbleSort([5, 3, 1, 4, 2]):
+     *   Pass 1: [5,3,1,4,2] → [3,1,4,2,5]   (4 comparisons)
+     *   Pass 2: [3,1,4,2,5] → [1,3,2,4,5]   (3 comparisons)
+     *   Pass 3: [1,3,2,4,5] → [1,2,3,4,5]   (2 comparisons)
+     *   Pass 4: [1,2,3,4,5] → no swap, exit  (1 comparison)
+     *
+     * @param array $items Indexed array of values to sort.
+     * @return array       ['sorted' => [...], 'iterations' => int]
      */
     public function bubbleSort(array $items): array
     {
-        // TODO: Compare adjacent items and swap them when they are out of order.
-        // TODO: Repeat passes until the array is fully sorted.
-        // TODO: Count each comparison iteration performed by the algorithm.
-        // TODO: Return both the sorted array and the iteration count.
-        throw new BadMethodCallException('Not implemented');
+        $n          = count($items);
+        $iterations = 0;
+
+        for ($i = 0; $i < $n - 1; $i++) {
+            $swapped = false;
+
+            for ($j = 0; $j < $n - $i - 1; $j++) {
+                $iterations++;                            // Count each comparison.
+                if ($items[$j] > $items[$j + 1]) {
+                    [$items[$j], $items[$j + 1]] = [$items[$j + 1], $items[$j]];
+                    $swapped = true;
+                }
+            }
+
+            // Optimisation: stop if the array is already fully sorted.
+            if (!$swapped) {
+                break;
+            }
+        }
+
+        return ['sorted' => $items, 'iterations' => $iterations];
     }
 
     /**
-     * Sort an array in ascending order using selection sort and count loop iterations.
+     * Selection Sort
+     * --------------
+     * Divides the array into a sorted left portion and an unsorted right
+     * portion.  On each pass it finds the minimum element in the unsorted
+     * portion and moves it to the boundary of the sorted portion.
      *
-     * The implementation should repeatedly find the smallest remaining element and move
-     * it into its correct position. Return the result using the same structure required
-     * for all sorting methods in this project.
+     * Time complexity:
+     *   Best    O(n²)
+     *   Average O(n²)
+     *   Worst   O(n²)
      *
-     * @param array<int, int|float|string> $items Array to sort.
+     * Note: selection sort always makes the same number of comparisons
+     * regardless of input order — it does not short-circuit.
      *
-     * @return array{sorted: array<int, int|float|string>, iterations: int}
+     * @param array $items Indexed array of values to sort.
+     * @return array       ['sorted' => [...], 'iterations' => int]
      */
     public function selectionSort(array $items): array
     {
-        // TODO: For each position, search the unsorted portion for the minimum value.
-        // TODO: Swap the minimum value into the current position when needed.
-        // TODO: Count each comparison iteration.
-        // TODO: Return the sorted array and total iteration count.
-        throw new BadMethodCallException('Not implemented');
+        $n          = count($items);
+        $iterations = 0;
+
+        for ($i = 0; $i < $n - 1; $i++) {
+            $minIdx = $i;
+
+            for ($j = $i + 1; $j < $n; $j++) {
+                $iterations++;                            // Count each comparison.
+                if ($items[$j] < $items[$minIdx]) {
+                    $minIdx = $j;
+                }
+            }
+
+            // Swap the found minimum into position only when necessary.
+            if ($minIdx !== $i) {
+                [$items[$i], $items[$minIdx]] = [$items[$minIdx], $items[$i]];
+            }
+        }
+
+        return ['sorted' => $items, 'iterations' => $iterations];
     }
 
     /**
-     * Sort an array in ascending order using insertion sort and count loop iterations.
+     * Insertion Sort
+     * --------------
+     * Builds a sorted sub-array one element at a time.  Each unsorted element
+     * is inserted into its correct position by shifting larger sorted elements
+     * one place to the right.
      *
-     * The implementation should build a sorted portion of the array by taking one value
-     * at a time and inserting it into the correct place. Return both the sorted array and
-     * the total number of element comparisons made.
+     * Time complexity:
+     *   Best    O(n)  — already sorted (inner loop never executes)
+     *   Average O(n²)
+     *   Worst   O(n²)
      *
-     * @param array<int, int|float|string> $items Array to sort.
+     * Nearly-sorted insight: because insertion sort stops shifting as soon as
+     * it finds a smaller element, it typically makes fewer comparisons than
+     * bubble sort on nearly-sorted input.  This is why the autograder compares
+     * iteration counts on a nearly-sorted test case.
      *
-     * @return array{sorted: array<int, int|float|string>, iterations: int}
+     * @param array $items Indexed array of values to sort.
+     * @return array       ['sorted' => [...], 'iterations' => int]
      */
     public function insertionSort(array $items): array
     {
-        // TODO: Start from the second element and treat earlier elements as the sorted portion.
-        // TODO: Shift larger values to the right until the correct insertion point is found.
-        // TODO: Count each comparison iteration made while searching for the insertion point.
-        // TODO: Return the sorted array and total iteration count.
-        throw new BadMethodCallException('Not implemented');
+        $n          = count($items);
+        $iterations = 0;
+
+        for ($i = 1; $i < $n; $i++) {
+            $key = $items[$i];
+            $j   = $i - 1;
+
+            // Shift elements that are greater than $key one position to the right.
+            while ($j >= 0) {
+                $iterations++;                            // Count each comparison.
+                if ($items[$j] > $key) {
+                    $items[$j + 1] = $items[$j];
+                    $j--;
+                } else {
+                    break;                                // Found the insertion point.
+                }
+            }
+
+            $items[$j + 1] = $key;
+        }
+
+        return ['sorted' => $items, 'iterations' => $iterations];
     }
 }

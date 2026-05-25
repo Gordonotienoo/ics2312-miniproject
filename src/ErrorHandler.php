@@ -1,71 +1,164 @@
 <?php
-
-declare(strict_types=1);
-
-namespace App;
-
-use BadMethodCallException;
-
+/**
+ * ErrorHandler — Phase 4: Error Handling & Debugging (Week 13)
+ * --------------------------------------------------------------
+ * Course  : ICS/ECE 2312 — JKUAT ECE Year 3 Semester 2
+ * Lecturer: Maxwell Ouma
+ * Platform: Kioto iLMS
+ *
+ * Defensive programming: detect unsafe situations early and raise clear
+ * RuntimeExceptions so failures are visible and debuggable immediately —
+ * rather than causing silent corruption or cryptic PHP warnings downstream.
+ *
+ * Exception hierarchy used in this class:
+ *   \Exception                   (base throwable type)
+ *     └── \RuntimeException      (used for all failures in this project:
+ *                                 missing files, unreadable files,
+ *                                 unwritable paths, zero-divisor)
+ *
+ * Usage pattern (as shown in the project brief):
+ *
+ *   $handler = new ErrorHandler();
+ *   try {
+ *       $contents = $handler->safeReadFile('students.csv');
+ *       echo $contents;
+ *   } catch (\RuntimeException $e) {
+ *       echo 'Error: ' . $e->getMessage();
+ *   } finally {
+ *       echo 'Operation finished.';
+ *   }
+ */
 class ErrorHandler
 {
+    // =========================================================================
+    // safeReadFile()
+    // =========================================================================
+
     /**
-     * Read and return the contents of a file while handling missing or unreadable files safely.
+     * Safely read the entire contents of a file and return them as a string.
      *
-     * The implementation should check whether the file exists and is readable, then return
-     * its contents as a string. If the file is missing or cannot be read, the method should
-     * throw an appropriate exception with a clear message.
+     * Checks:
+     *   1. File exists       — throws if not.
+     *   2. File is readable  — throws if not (permission problem).
+     *   3. file_get_contents succeeds — throws on unexpected I/O failure.
      *
-     * @param string $filePath Absolute or relative path to the file to read.
-     *
-     * @return string File contents.
+     * @param string $filePath Path to the file to read.
+     * @return string          The raw file contents.
+     * @throws \RuntimeException If the file is missing, unreadable, or the
+     *                           read operation fails.
      */
     public function safeReadFile(string $filePath): string
     {
-        // TODO: Verify that the file exists before attempting to read it.
-        // TODO: Verify that the file is readable.
-        // TODO: Read and return the file contents as a string.
-        // TODO: Throw a clear exception when the file is missing or unreadable.
-        throw new BadMethodCallException('Not implemented');
+        // Check 1: Does the file exist at all?
+        if (!file_exists($filePath)) {
+            throw new \RuntimeException(
+                "File not found: '{$filePath}'. "
+                . "Verify the path is correct before attempting to read."
+            );
+        }
+
+        // Check 2: Is the file readable by the current process?
+        if (!is_readable($filePath)) {
+            throw new \RuntimeException(
+                "File is not readable: '{$filePath}'. "
+                . "Check that the file permissions allow read access."
+            );
+        }
+
+        // Attempt the actual read.
+        $contents = file_get_contents($filePath);
+
+        // Check 3: file_get_contents returns false on failure.
+        if ($contents === false) {
+            throw new \RuntimeException(
+                "Failed to read file: '{$filePath}'. "
+                . "An unexpected I/O error occurred during the read operation."
+            );
+        }
+
+        return $contents;
     }
 
+    // =========================================================================
+    // safeWriteFile()
+    // =========================================================================
+
     /**
-     * Write text content to a file while reporting unwritable destinations safely.
+     * Safely write a string to a file and return the number of bytes written.
      *
-     * The implementation should create or overwrite the target file and return the number
-     * of bytes written. If the destination path cannot be written, the method should throw
-     * an appropriate exception with a clear message.
+     * Checks:
+     *   1. Parent directory is writable — throws if not.
+     *   2. If the file already exists, it is writable — throws if not.
+     *   3. file_put_contents succeeds — throws on unexpected I/O failure.
      *
-     * @param string $filePath Absolute or relative path to the file to write.
-     * @param string $content Content to be written to the file.
-     *
-     * @return int Number of bytes written.
+     * @param string $filePath Path to the file to write (will be created or
+     *                         overwritten).
+     * @param string $content  The string content to write.
+     * @return int             Number of bytes written.
+     * @throws \RuntimeException If the directory or file is not writable, or
+     *                           the write operation fails.
      */
     public function safeWriteFile(string $filePath, string $content): int
     {
-        // TODO: Attempt to write the full string content to the target path.
-        // TODO: Return the exact number of bytes written when successful.
-        // TODO: Detect unwritable paths or failed writes.
-        // TODO: Throw a clear exception when the write cannot be completed.
-        throw new BadMethodCallException('Not implemented');
+        $dir = dirname($filePath);
+
+        // Check 1: Is the parent directory writable?
+        if (!is_writable($dir)) {
+            throw new \RuntimeException(
+                "Directory is not writable: '{$dir}'. "
+                . "Check that the directory permissions allow write access."
+            );
+        }
+
+        // Check 2: If the file already exists, is it writable?
+        if (file_exists($filePath) && !is_writable($filePath)) {
+            throw new \RuntimeException(
+                "File exists but is not writable: '{$filePath}'. "
+                . "Check the file permissions before attempting to overwrite it."
+            );
+        }
+
+        // Attempt the actual write.
+        $bytes = file_put_contents($filePath, $content);
+
+        // Check 3: file_put_contents returns false on failure.
+        if ($bytes === false) {
+            throw new \RuntimeException(
+                "Failed to write to file: '{$filePath}'. "
+                . "An unexpected I/O error occurred during the write operation."
+            );
+        }
+
+        return $bytes;
     }
 
+    // =========================================================================
+    // safeDivide()
+    // =========================================================================
+
     /**
-     * Divide two numbers safely and reject division by zero.
+     * Safely divide two numbers, explicitly rejecting a zero divisor.
      *
-     * The implementation should return the division result as a float. If the divisor is
-     * zero, the method should throw an appropriate exception rather than allowing unsafe
-     * behavior to continue.
+     * Without this guard, PHP would raise a DivisionByZeroError (PHP 8) or
+     * return INF / NAN for float division — both are silent failures that make
+     * downstream bugs hard to trace.  By throwing a RuntimeException here we
+     * surface the problem at its source.
      *
-     * @param int|float $dividend Number being divided.
-     * @param int|float $divisor Number to divide by.
-     *
-     * @return float Result of the division.
+     * @param int|float $dividend The number to be divided.
+     * @param int|float $divisor  The number to divide by; must not be zero.
+     * @return float              The result of ($dividend / $divisor).
+     * @throws \RuntimeException  If $divisor is zero.
      */
     public function safeDivide(int|float $dividend, int|float $divisor): float
     {
-        // TODO: Check whether the divisor is zero before performing division.
-        // TODO: Throw a clear exception when division by zero is attempted.
-        // TODO: Perform the division and return the result as a float.
-        throw new BadMethodCallException('Not implemented');
+        // Strict zero check covers both integer 0 and float 0.0.
+        if ($divisor == 0) {
+            throw new \RuntimeException(
+                "Division by zero is not allowed. "
+                . "The divisor must be a non-zero value; received: {$divisor}."
+            );
+        }
+
+        return (float)($dividend / $divisor);
     }
 }

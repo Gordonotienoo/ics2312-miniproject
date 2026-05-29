@@ -38,7 +38,7 @@ $input = [
 ];
 
 // ── Run server-side validation ────────────────────────────────────────────────
-$validator = new FormValidator();
+$validator = new \App\FormValidator();
 $errors    = $validator->validateAll($input);
 
 if (!empty($errors)) {
@@ -135,3 +135,4 @@ $safeAge   = htmlspecialchars((string)$input['age'],   ENT_QUOTES, 'UTF-8');
 </div>
 </body>
 </html>
+
